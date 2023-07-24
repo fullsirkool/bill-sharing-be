@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int            @id @default(autoincrement())
+  email                String         @unique
+  firstName            String         @map(name: "first_name")
+  lastName             String         @map(name: "last_name")
+  password             String
+  gender               Gender
+  refreshToken         String         @map(name: "refresh_token")
+  expiredTime          Float          @map(name: "expired_time")
+  avatarPicture        String         @map(name: "avatar_picture")
+  eventMembers         EventMember[]
+  billByUsers          BillByUser[]
+  friendRequesters     Relationship[] @relation(name: "friend_requester")
+  friendReceivers      Relationship[] @relation(name: "friend_receiver")
+  invitationRequesters Invitation[]   @relation(name: "Invitation_requester")
+  invitationReceivers  Invitation[]   @relation(name: "Invitation_receiver")
+}
+
+model Relationship {
+  id          Int                @id @default(autoincrement())
+  requesterId Int                @map(name: "requester_id")
+  receiverId  Int                @map(name: "receiver_id")
+  createdAt   DateTime           @default(now()) @map(name: "created_at")
+  status      RelationshipStatus
+  requester   User               @relation(name: "friend_requester", fields: [requesterId], references: [id])
+  receiver    User               @relation(name: "friend_receiver", fields: [receiverId], references: [id])
+}
+
+model Event {
+  id           Int           @id @default(autoincrement())
+  name         String
+  description  String?
+  createdAt    DateTime      @default(now()) @map(name: "created_at")
+  updatedAt    DateTime      @default(now()) @map(name: "updated_at")
+  status       EventStatus
+  eventMembers EventMember[]
+  bills        Bill[]
+  Invitation   Invitation[]
+}
+
+model EventMember {
+  id          Int          @id @default(autoincrement())
+  eventId     Int          @map(name: "event_id")
+  userId      Int          @map(name: "user_id")
+  event       Event        @relation(fields: [eventId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  invitations Invitation[]
+}
+
+model Invitation {
+  id            Int          @id @default(autoincrement())
+  requesterId   Int          @map(name: "sender_id")
+  eventId       Int          @map(name: "event_id")
+  receiverId    Int          @map(name: "receiver_id")
+  event         Event        @relation(fields: [eventId], references: [id])
+  sender        User         @relation(name: "Invitation_requester", fields: [requesterId], references: [id])
+  receiver      User         @relation(name: "Invitation_receiver", fields: [receiverId], references: [id])
+  EventMember   EventMember? @relation(fields: [eventMemberId], references: [id])
+  eventMemberId Int?
+}
+
+model Bill {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  amout       Float
+  createdAt   DateTime     @default(now()) @map(name: "created_at")
+  eventId     Int          @map("event_id")
+  event       Event        @relation(fields: [eventId], references: [id])
+  billByUsers BillByUser[]
+}
+
+model BillByUser {
+  id     Int        @id @default(autoincrement())
+  amount Float
+  status BillStatus
+  userId Int        @map(name: "user_id")
+  billId Int        @map(name: "bill_id")
+  user   User       @relation(fields: [userId], references: [id])
+  bill   Bill       @relation(fields: [billId], references: [id])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EventStatus {
+  PENDING
+  INCOMMING
+  COMPLETED
+}
+
+enum BillStatus {
+  DONE
+  NOT_DONE
+}
+
+enum RelationshipStatus {
+  ACCEPTED
+  REQUESTED
+  REJECTED
+}

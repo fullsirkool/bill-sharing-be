@@ -17,9 +17,11 @@ model User {
   lastName             String         @map(name: "last_name")
   password             String
   gender               Gender
-  refreshToken         String         @map(name: "refresh_token")
-  expiredTime          Float          @map(name: "expired_time")
-  avatarPicture        String         @map(name: "avatar_picture")
+  refreshToken         String?        @map(name: "refresh_token")
+  expiredTime          Float?         @map(name: "expired_time")
+  avatarPicture        String?        @map(name: "avatar_picture")
+  capcha               String?        @default(uuid())
+  activated            Boolean        @default(false)
   eventMembers         EventMember[]
   billByUsers          BillByUser[]
   friendRequesters     Relationship[] @relation(name: "friend_requester")

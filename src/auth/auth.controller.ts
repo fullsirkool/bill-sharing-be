@@ -24,6 +24,11 @@ export class AuthController {
     return this.authService.signIn(signInDto);
   }
 
+  @Post('/signin-google')
+  async signInWithGoogle(@Param() token: string) {
+    return this.authService.signInWithGoogle(token);
+  }
+
   @Patch('verify/:capcha')
   async verify(@Param('capcha') capcha: string) {
     const success = await this.authService.verify(capcha);

@@ -22,7 +22,7 @@ model User {
   expiredTime          Float?         @map(name: "expired_time")
   avatarPicture        String?        @map(name: "avatar_picture")
   capcha               String?        @default(uuid())
-  status               UserStatus     @default(INACTIVATED)
+  activated            Boolean        @default(true)
   eventMembers         EventMember[]
   billByUsers          BillByUser[]
   friendRequesters     Relationship[] @relation(name: "friend_requester")
@@ -99,12 +99,6 @@ enum Gender {
   MALE
   FEMALE
   OTHER
-}
-
-enum UserStatus {
-  ACTIVATED
-  INACTIVATED
-  PENDING
 }
 
 enum EventStatus {

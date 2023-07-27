@@ -9,7 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignInDto, SignUpDto } from './auth.dto';
+import { ChangePasswordDto, SignInDto, SignUpDto } from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -33,6 +33,12 @@ export class AuthController {
   @Patch('verify/:capcha')
   async verify(@Param('capcha') capcha: string) {
     const success = await this.authService.verify(capcha);
+    return { success };
+  }
+
+  @Patch('/change-password')
+  async changePassword(@Body() passwordObj: ChangePasswordDto) {
+    const success = await this.authService.changePassword(passwordObj);
     return { success };
   }
 }

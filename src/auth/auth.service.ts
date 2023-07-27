@@ -1,7 +1,7 @@
 import { UserService } from './../user/user.service';
 import { PrismaService } from './../prisma/prisma.service';
-import { SignUpDto, SignInDto } from './auth.dto';
-import { Injectable } from '@nestjs/common';
+import { SignUpDto, SignInDto, ChangePasswordDto } from './auth.dto';
+import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { getEmailContent } from './constants';
@@ -9,7 +9,9 @@ import { SenderService } from 'src/sender/sender.service';
 import { catchError, firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { AxiosError } from 'axios';
-import { UserStatus } from '@prisma/client';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private readonly httpService: HttpService,
     private readonly userService: UserService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
   async signUp(signUpDto: SignUpDto) {
     try {
@@ -59,7 +62,7 @@ export class AuthService {
       if (findUser) {
         const isMatch = await bcrypt.compare(password, findUser.password);
         if (isMatch) {
-          if (findUser.status === UserStatus.ACTIVATED) {
+          if (findUser.activated) {
             const payload = { id: findUser.id };
             const token = await this.jwtService.signAsync(payload);
             return {
@@ -105,23 +108,45 @@ export class AuthService {
       const { email, name, picture, given_name, family_name } = data;
       const findUser = await this.userService.findByEmail(email);
       if (findUser) {
-        if (findUser.status === UserStatus.INACTIVATED) {
+        if (findUser.activated) {
           const payload = { id: findUser.id };
           const token = await this.jwtService.signAsync(payload);
           return {
             access_token: token,
           };
-        } else if (findUser.status === UserStatus.PENDING) {
-          return {update: true}
-        } {
+        } else {
           throw new Error(
             'Your account has not already activated. Please check your email to verify!',
           );
         }
       } else {
-
+        const tempUser = {
+          email,
+          firstName: given_name,
+          lastName: family_name,
+          avatarPicture: picture,
+        }
+        console.log('add temp user', tempUser);
+        await this.cacheManager.set('temp-user', tempUser, 1000000);
       }
     } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  async changePassword(passObj: ChangePasswordDto) {
+    try {
+      const {oldPassword, newPassword} =  passObj
+      const tempUser = await this.cacheManager.get('temp-user') as object
+      console.log('tempUser', tempUser)
+      if (tempUser) {
+        const user = {...tempUser, password: newPassword, capcha: null} as User
+        await this.prismaService.user.create({data: user})
+        await this.cacheManager.del('temp-user')
+        return true
+      }
+    } catch (error) {
+      console.log(error)
       throw new Error(error.message);
     }
   }
@@ -136,7 +161,7 @@ export class AuthService {
           where: { id: findUser.id },
           data: {
             capcha: '',
-            status: UserStatus.ACTIVATED,
+            activated: true,
           },
         });
         return true;

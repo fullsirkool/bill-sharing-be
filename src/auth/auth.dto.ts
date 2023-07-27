@@ -27,3 +27,10 @@ export class SignInDto {
   @IsNotEmpty()
   password: string;
 }
+
+export class ChangePasswordDto {
+  oldPassword: string;
+  @IsStrongPassword()
+  @IsNotEmpty()
+  newPassword: string;
+}

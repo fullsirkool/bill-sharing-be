@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -25,7 +26,7 @@ export class AuthController {
   }
 
   @Post('/signin-google')
-  async signInWithGoogle(@Param() token: string) {
+  async signInWithGoogle(@Query('token') token: string) {
     return this.authService.signInWithGoogle(token);
   }
 

@@ -1,3 +1,4 @@
+import { UserService } from './../user/user.service';
 import { PrismaService } from './../prisma/prisma.service';
 import { SignUpDto, SignInDto } from './auth.dto';
 import { Injectable } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { SenderService } from 'src/sender/sender.service';
 import { catchError, firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { AxiosError } from 'axios';
+import { UserStatus } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -16,13 +18,12 @@ export class AuthService {
     private readonly senderService: SenderService,
     private jwtService: JwtService,
     private readonly httpService: HttpService,
+    private readonly userService: UserService,
   ) {}
   async signUp(signUpDto: SignUpDto) {
     try {
       const { email, password, firstName, lastName, gender } = signUpDto;
-      const findUser = await this.prismaService.user.findUnique({
-        where: { email },
-      });
+      const findUser = await this.userService.findByEmail(email);
       if (!findUser) {
         const bcryptSalt = +process.env.BCRYPT_SALT;
         const hash = await bcrypt.hash(password, bcryptSalt);
@@ -54,13 +55,11 @@ export class AuthService {
   async signIn(signInDto: SignInDto) {
     try {
       const { email, password } = signInDto;
-      const findUser = await this.prismaService.user.findUnique({
-        where: { email },
-      });
+      const findUser = await this.userService.findByEmail(email);
       if (findUser) {
         const isMatch = await bcrypt.compare(password, findUser.password);
         if (isMatch) {
-          if (findUser.activated) {
+          if (findUser.status === UserStatus.ACTIVATED) {
             const payload = { id: findUser.id };
             const token = await this.jwtService.signAsync(payload);
             return {
@@ -87,19 +86,41 @@ export class AuthService {
       const url = process.env.GOOGLE_INFOR_URL;
       const { data } = await firstValueFrom(
         this.httpService
-          .get(url, {
-            params: {
-              id_token: token,
+          .post(
+            url,
+            {},
+            {
+              params: {
+                id_token: token,
+              },
             },
-          })
+          )
           .pipe(
             catchError((error: AxiosError) => {
-              console.error(error.response.data);
+              console.error(error);
               throw 'An error happened!';
             }),
           ),
       );
-      console.log(data)
+      const { email, name, picture, given_name, family_name } = data;
+      const findUser = await this.userService.findByEmail(email);
+      if (findUser) {
+        if (findUser.status === UserStatus.INACTIVATED) {
+          const payload = { id: findUser.id };
+          const token = await this.jwtService.signAsync(payload);
+          return {
+            access_token: token,
+          };
+        } else if (findUser.status === UserStatus.PENDING) {
+          return {update: true}
+        } {
+          throw new Error(
+            'Your account has not already activated. Please check your email to verify!',
+          );
+        }
+      } else {
+
+      }
     } catch (error) {
       throw new Error(error.message);
     }
@@ -115,7 +136,7 @@ export class AuthService {
           where: { id: findUser.id },
           data: {
             capcha: '',
-            activated: true,
+            status: UserStatus.ACTIVATED,
           },
         });
         return true;

@@ -16,12 +16,13 @@ model User {
   firstName            String         @map(name: "first_name")
   lastName             String         @map(name: "last_name")
   password             String
-  gender               Gender
+  dateOfBirth          DateTime?      @map(name: "date_of_birth")
+  gender               Gender?
   refreshToken         String?        @map(name: "refresh_token")
   expiredTime          Float?         @map(name: "expired_time")
   avatarPicture        String?        @map(name: "avatar_picture")
   capcha               String?        @default(uuid())
-  activated            Boolean        @default(false)
+  status               UserStatus     @default(INACTIVATED)
   eventMembers         EventMember[]
   billByUsers          BillByUser[]
   friendRequesters     Relationship[] @relation(name: "friend_requester")
@@ -98,6 +99,12 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum UserStatus {
+  ACTIVATED
+  INACTIVATED
+  PENDING
 }
 
 enum EventStatus {
